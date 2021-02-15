@@ -1,6 +1,7 @@
 from bokeh.plotting import figure, output_file, show
 from datetime import datetime, timedelta
 from scipy.interpolate import interp1d
+from scipy import integrate
 import numpy
 import csv
 import pytz
@@ -63,22 +64,25 @@ def extract_time_range_for_interp(data, str_start, str_stop):
     times_datetime = []
     values = []
     for row in data:
-        if row[0] > datetime_start-timedelta(minutes=30) and row[0] < datetime_stop+timedelta(minutes=30):
+        if row[0] > datetime_start-timedelta(days=1) and row[0] < datetime_stop+timedelta(days=1):
             times_datetime.append(row[0])
             values.append(row[1])
     return times_datetime, values
 
 
-def datetime_to_num(array):
-    return [int(round(i.timestamp()*1000)) for i in array]
+def datetime_to_num_array(array):
+    return [int(round(i.timestamp())) for i in array]
+
+def datetime_to_num(date):
+    return int(round(date.timestamp()))
 
 def interp_evaluate(data, start_time, stop_time, step_minutes, mode, decimals):
     
     times = create_time_vals_minutes(start_time, stop_time, step_minutes)
     data_times, data_values = extract_time_range_for_interp(data, start_time, stop_time)
 
-    data_times_num = datetime_to_num(data_times)
-    times_num = datetime_to_num(times)
+    data_times_num = datetime_to_num_array(data_times)
+    times_num = datetime_to_num_array(times)
 
     interp_funct = interp1d(data_times_num, data_values, kind=mode, fill_value='extrapolate')
     values = interp_funct(times_num)
@@ -90,15 +94,24 @@ def interp_evaluate(data, start_time, stop_time, step_minutes, mode, decimals):
 
     return times, rounded_val
 
+def get_hour(data, start_time, stop_time):
+    
+    data_times, data_values = extract_time_range_for_interp(data, start_time, stop_time)
+    data_times_num = datetime_to_num_array(data_times)
+    interp_funct = interp1d(data_times_num, data_values, kind='previous', fill_value='extrapolate')
+    datetime_start = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+    datetime_stop = datetime.strptime(stop_time, '%Y-%m-%d %H:%M:%S')
+    result = integrate.quad(interp_funct, datetime_to_num(datetime_start), datetime_to_num(datetime_stop), limit=300)
+    return round(result[0]/3600,1)
 
 
 if __name__ == "__main__":
     
-    data = readcsv('inputs/flow_5_diciembre.csv')
+    data = readcsv('inputs/op_g1h.csv')
     
-    caudal, raw_times, raw_values = geohistoric_formatted_by_id(data, 86782, ['RecordTime','Id','ValueAsReal'], 2)
+    op, raw_times, raw_values = geohistoric_formatted_by_id(data, 61198, ['RecordTime','Id','ValueAsReal'], 2)
 
-    times, values = interp_evaluate(caudal, '2020-06-01 00:00:00', '2021-02-10 23:59:59', 15, 'linear', 2)
+    times, values = interp_evaluate(op, '2021-01-01 00:00:00', '2021-01-31 23:59:59', 15, 'previous', 1)
 
     report = []
 
@@ -107,10 +120,12 @@ if __name__ == "__main__":
 
     print(report[10])
 
-    writecsv('outputs/report_caudal_5_diciembre_15.csv',report)
+    #writecsv('outputs/report_caudal_5_diciembre_15.csv',report)
 
-    output_file('report2.html')
-    fig = figure(x_axis_type='datetime',plot_width=1200,plot_height=400)
-    fig.line(raw_times,raw_values, line_width = 2,color="navy")
-    fig.line(times,values, line_width = 4,color="orange")
-    show(fig)
+    #output_file('report3.html')
+    #fig = figure(x_axis_type='datetime',plot_width=1200,plot_height=400)
+    #fig.line(raw_times,raw_values, line_width = 2,color="navy")
+    #fig.line(times,values, line_width = 4,color="orange")
+    #show(fig)
+
+    print(get_hour(op, '2020-12-01 00:00:00', '2020-12-31 23:59:59'))
