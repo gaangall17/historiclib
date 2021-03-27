@@ -24,9 +24,10 @@ def extract_by_id(rows, id):
                 #1/24/2021 4:20:05 PM
                 timestamp = datetime.strptime(timestamp_format, '%m/%d/%Y %I:%M:%S %p')
             else:
-                #1/2/2021 08:15:00
-                timestamp = datetime.strptime(row[0], '%m/%d/%Y %H:%M:%S')
-            timestamp.replace(tzinfo=pytz.timezone('America/Lima'))
+                timestamp_format = row[0][:19]
+                #2021 08:15:00
+                timestamp = datetime.strptime(timestamp_format, '%Y-%m-%d %H:%M:%S')
+            #timestamp.replace(tzinfo=pytz.timezone('America/Lima'))
             if float(row[2]) > 500:
                 value = 500
             elif float(row[2]) < 0:
@@ -39,10 +40,11 @@ def extract_by_id(rows, id):
 def extract_by_id_all(raw, db):
     result = []
     for element in db:
-        element_data = extract_by_id(raw,element[1])
-        element_name = element[0]
-        element_color = element[2]
-        result.append([element_name,element_data,element_color])
+        if element[1] == '100861':
+            element_data = extract_by_id(raw,element[1])
+            element_name = element[0]
+            element_color = element[2]
+            result.append([element_name,element_data,element_color])
     return result
 
 def graph_multiple_points(name, points):
@@ -55,7 +57,8 @@ def graph_multiple_points(name, points):
         for row in point[1]:
             x.append(row[0])
             y.append(row[1]) 
-        fig.line(x, y, line_width = 1,line_color=point[2],legend_label=point[0])
+        fig.line(x, y, line_width = 1, line_color=point[2], legend_label=point[0])
+        fig.circle(x, y, size=5, color=point[2], alpha=0.5)
 
     show(fig) 
 
@@ -73,10 +76,10 @@ def extract_from_time_range(two_dim_rows, str_start, str_stop):
     return times_num, times_datetime, values
 
 if __name__=="__main__":
-    pluv_raw = readcsv('documents/pluviometro_raw_until_20210124.csv')
-    pluv_lurgi_conv = extract_by_id(pluv_raw, 89234)
+    pluv_raw = readcsv('inputs/inst.csv')
+    #pluv_lurgi_conv = extract_by_id(pluv_raw, 89234)
     
-    pluv_db = readcsv('documents/pluviometro_db.csv')
+    pluv_db = readcsv('inputs/pluviometro_db.csv')
 
     data_extracted = extract_by_id_all(pluv_raw, pluv_db)
 
